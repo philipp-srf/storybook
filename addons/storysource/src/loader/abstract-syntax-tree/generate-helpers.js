@@ -1,6 +1,6 @@
 import prettier from 'prettier';
 import { patchNode } from './parse-helpers';
-import { splitSTORYOF, findAddsMap } from './traverse-helpers';
+import { splitSTORYOF, findAddsMap, findDependencies } from './traverse-helpers';
 import getParser from './parsers';
 
 function isUglyComment(comment, uglyCommentsRegex) {
@@ -29,12 +29,14 @@ function generateSourceWithoutUglyComments(source, { comments, uglyCommentsRegex
 
 function prettifyCode(source, { prettierConfig, parser, filepath }) {
   let config = prettierConfig;
-
+  let foundParser = null;
+  if (parser === 'javascript' || /jsx?/.test(parser)) foundParser = 'babel';
+  if (/tsx?/.test(parser)) foundParser = 'typescript';
   if (!config.parser) {
-    if (parser) {
+    if (foundParser) {
       config = {
         ...prettierConfig,
-        parser: parser === 'javascript' ? 'babel' : parser,
+        parser: foundParser,
       };
     } else if (filepath) {
       config = {
@@ -87,6 +89,13 @@ export function generateAddsMap(source, parserType) {
   const ast = parser.parse(source);
 
   return findAddsMap(ast);
+}
+
+export function generateDependencies(source, parserType) {
+  const parser = getParser(parserType);
+  const ast = parser.parse(source);
+
+  return findDependencies(ast);
 }
 
 export function generateStorySource({ source, ...options }) {
