@@ -40,7 +40,7 @@ export default class StoryPanel extends Component {
   }
 
   listener = ({
-    edition: { source, mainFileLocation, fileName, dependencies, localDependencies },
+    edition: { source, mainFileLocation, dependencies, localDependencies, prefix },
     story: { story, kind },
     location: { currentLocation, locationsMap },
   }) => {
@@ -49,12 +49,12 @@ export default class StoryPanel extends Component {
     this.setState({
       story,
       kind,
-      fileName,
       source,
       dependencies,
       localDependencies,
       currentLocation,
       mainFileLocation,
+      prefix,
       locationsMap, // eslint-disable-line react/no-unused-state
       locationsKeys, // eslint-disable-line react/no-unused-state
     });
@@ -63,13 +63,13 @@ export default class StoryPanel extends Component {
     console.log({
       story,
       kind,
-      fileName,
       source,
       currentLocation,
       locationsMap,
       dependencies,
       localDependencies,
       mainFileLocation,
+      prefix,
     });
   };
 
@@ -93,11 +93,11 @@ export default class StoryPanel extends Component {
       contextMenuGroupId: 'navigation',
       contextMenuOrder: 1.5,
       run: thisEditor => {
-        const { fileName } = this.state;
         const { channel } = this.props;
+        const { prefix } = this.state;
         const content = thisEditor.getModel().getValue();
         channel.emit(SAVE_FILE_EVENT_ID, {
-          fileName,
+          fileName: `${prefix}${this.openedPath}`,
           content,
         });
         return null;

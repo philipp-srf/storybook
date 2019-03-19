@@ -23,6 +23,7 @@ export function getRidOfUselessFilePrefixes({
 }) {
   const commondir = commonDir(resource, ...Object.keys(localDependencies || {}));
   return {
+    prefix: commondir,
     source,
     sourceJson,
     addsMap,

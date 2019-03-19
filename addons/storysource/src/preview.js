@@ -9,21 +9,19 @@ function setStorySource(
   locationsMap,
   mainFileLocation,
   dependencies,
-  localDependencies
+  localDependencies,
+  prefix
 ) {
   const channel = addons.getChannel();
   const currentLocation = getLocation(context, locationsMap);
-  const {
-    parameters: { fileName },
-  } = context;
 
   channel.emit(STORY_EVENT_ID, {
     edition: {
       source,
       mainFileLocation,
-      fileName,
       dependencies,
       localDependencies,
+      prefix,
     },
     story: {
       kind: context.kind,
@@ -41,7 +39,8 @@ export function withStorySource(
   locationsMap = {},
   mainFileLocation = '/index.js',
   dependencies = [],
-  localDependencies = {}
+  localDependencies = {},
+  prefix
 ) {
   return (story, context) => {
     setStorySource(
@@ -50,7 +49,8 @@ export function withStorySource(
       locationsMap,
       mainFileLocation,
       dependencies,
-      localDependencies
+      localDependencies,
+      prefix
     );
     return story();
   };
