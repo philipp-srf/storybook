@@ -111,10 +111,17 @@ export default class StoryPanel extends Component {
     const { startLoc } = currentLocation || { startLoc: { line: 0 } };
     const { line: startLocLine } = startLoc;
 
-    // eslint-disable-next-line no-underscore-dangle
-    editor._revealLine(startLocLine);
-    // eslint-disable-next-line no-underscore-dangle
-    editor._actions['editor.action.jumpToBracket']._run();
+    if (this.currentlyRenderingMainFile()) {
+      // eslint-disable-next-line no-underscore-dangle
+      editor._revealLine(startLocLine);
+      // eslint-disable-next-line no-underscore-dangle
+      editor._actions['editor.action.jumpToBracket']._run();
+    }
+  };
+
+  currentlyRenderingMainFile = () => {
+    const { mainFileLocation } = this.state;
+    return !this.openedPath || this.openedPath === mainFileLocation;
   };
 
   updateSource = (
@@ -133,7 +140,7 @@ export default class StoryPanel extends Component {
         startLoc: { line: startLocLine, col: startLocCol },
         endLoc: { line: endLocLine, col: endLocCol },
       },
-      mainFileLocation,
+      localDependencies,
     } = this.state;
 
     const newEndLocLine =
@@ -155,11 +162,16 @@ export default class StoryPanel extends Component {
 
     const { source } = this.state;
     let updatedMain = source;
-    if (!this.openedPath || this.openedPath === mainFileLocation) {
+    let updatedLocalDependencies = localDependencies;
+    if (this.currentlyRenderingMainFile()) {
       updatedMain = newSource;
+    } else {
+      updatedLocalDependencies = { ...localDependencies, [this.openedPath]: { code: newSource } };
     }
+
     this.setState({
       source: updatedMain,
+      localDependencies: updatedLocalDependencies,
       currentLocation: {
         startLoc: { line: startLocLine, col: startLocCol },
         endLoc: { line: newEndLocLine, col: newEndLocCol },
@@ -176,9 +188,7 @@ export default class StoryPanel extends Component {
       additionalStyles,
       lineDecorations,
       currentLocation: { startLoc, endLoc },
-      mainFileLocation,
     } = this.state;
-    const storyIsVisible = !this.openedPath || this.openedPath === mainFileLocation;
     const highlightClassName = `css-${additionalStyles.name}`;
     // probably a bug in monaco editor.
     // we will prevent the first highlighting from gluing in the editor
@@ -186,7 +196,7 @@ export default class StoryPanel extends Component {
       // eslint-disable-next-line no-underscore-dangle
       .concat(Object.keys(editor._modelData.viewModel.decorations._decorationsCache));
     let newDecorations = [];
-    if (storyIsVisible) {
+    if (this.currentlyRenderingMainFile()) {
       newDecorations = [
         {
           range: new monaco.Range(startLoc.line, startLoc.col + 1, endLoc.line, endLoc.col + 1),
@@ -197,7 +207,7 @@ export default class StoryPanel extends Component {
     const editorDecorations = editor.deltaDecorations(allDecorations, newDecorations);
 
     if (
-      (storyIsVisible && e.position.lineNumber < startLoc.line) ||
+      (this.currentlyRenderingMainFile() && e.position.lineNumber < startLoc.line) ||
       (e.position.lineNumber === startLoc.line && e.position.column < startLoc.col)
     )
       editor.setPosition({
@@ -205,7 +215,7 @@ export default class StoryPanel extends Component {
         column: startLoc.col,
       });
     if (
-      (storyIsVisible && e.position.lineNumber > endLoc.line) ||
+      (this.currentlyRenderingMainFile() && e.position.lineNumber > endLoc.line) ||
       (e.position.lineNumber === endLoc.line && e.position.column > endLoc.col + 1)
     )
       editor.setPosition({
@@ -319,7 +329,8 @@ forceReRender();
         >
           <FileExplorer
             css={css`
-              div[style*='margin-left: 0rem'] > div:not(.sandpack-File__container):before {
+              div[style*='margin-left: '] > div:not(.sandpack-File__container):before,
+              div[style*='margin-left: '] > div:not(.sandpack-File__container):before {
                 content: '📁';
                 position: absolute;
                 margin-left: 3px;
