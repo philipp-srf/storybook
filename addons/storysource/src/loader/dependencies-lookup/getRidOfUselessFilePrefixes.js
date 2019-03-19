@@ -20,6 +20,7 @@ export function getRidOfUselessFilePrefixes({
   addsMap,
   dependencies,
   localDependencies,
+  idsToFrameworks,
 }) {
   const commondir = commonDir(resource, ...Object.keys(localDependencies || {}));
   return {
@@ -28,6 +29,7 @@ export function getRidOfUselessFilePrefixes({
     sourceJson,
     addsMap,
     dependencies,
+    idsToFrameworks,
     resource:
       commondir === resource
         ? '/index.js'

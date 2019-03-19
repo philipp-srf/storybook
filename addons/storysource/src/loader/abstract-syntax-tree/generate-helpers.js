@@ -1,7 +1,6 @@
 import prettier from 'prettier';
 import { patchNode } from './parse-helpers';
 import { splitSTORYOF, findAddsMap, findDependencies } from './traverse-helpers';
-import getParser from './parsers';
 
 function isUglyComment(comment, uglyCommentsRegex) {
   return uglyCommentsRegex.some(regex => regex.test(comment));
@@ -54,10 +53,7 @@ function prettifyCode(source, { prettierConfig, parser, filepath }) {
   return prettier.format(source, config);
 }
 
-export function generateSourceWithDecorators(source, decorator, parserType) {
-  const parser = getParser(parserType);
-  const ast = parser.parse(source);
-
+export function generateSourceWithDecorators(source, ast, decorator) {
   const { comments = [] } = ast;
 
   const parts = splitSTORYOF(ast, source);
@@ -71,10 +67,7 @@ export function generateSourceWithDecorators(source, decorator, parserType) {
   };
 }
 
-export function generateSourceWithoutDecorators(source, parserType) {
-  const parser = getParser(parserType);
-  const ast = parser.parse(source);
-
+export function generateSourceWithoutDecorators(source, ast) {
   const { comments = [] } = ast;
 
   return {
@@ -84,17 +77,11 @@ export function generateSourceWithoutDecorators(source, parserType) {
   };
 }
 
-export function generateAddsMap(source, parserType) {
-  const parser = getParser(parserType);
-  const ast = parser.parse(source);
-
-  return findAddsMap(ast);
+export function generateAddsMap(ast, storiesOfIdentifiers) {
+  return findAddsMap(ast, storiesOfIdentifiers);
 }
 
-export function generateDependencies(source, parserType) {
-  const parser = getParser(parserType);
-  const ast = parser.parse(source);
-
+export function generateDependencies(ast) {
   return findDependencies(ast);
 }
 

@@ -3,7 +3,7 @@ import path from 'path';
 import injectDecorator from '../abstract-syntax-tree/inject-decorator';
 
 const ADD_DECORATOR_STATEMENT =
-  '.addDecorator(withStorySource(__STORY__, __ADDS_MAP__,__MAIN_FILE_LOCATION__,__MODULE_DEPENDENCIES__,__LOCAL_DEPENDENCIES__,__SOURCE_PREFIX__))';
+  '.addDecorator(withStorySource(__STORY__, __ADDS_MAP__,__MAIN_FILE_LOCATION__,__MODULE_DEPENDENCIES__,__LOCAL_DEPENDENCIES__,__SOURCE_PREFIX__,__IDS_TO_FRAMEWORKS__))';
 
 function extractDependenciesFrom(tree) {
   return !Object.entries(tree || {}).length
@@ -41,6 +41,7 @@ function readAsObject(classLoader, inputSource, mainFile) {
   const addsMap = result.addsMap || {};
   const dependencies = result.dependencies || [];
   const source = mainFile ? result.source : inputSource;
+  const idsToFrameworks = result.idsToFrameworks || {};
   const resource = classLoader.resourcePath || classLoader.resource;
 
   const moduleDependencies = (result.dependencies || []).filter(d => d[0] === '.' || d[0] === '/');
@@ -97,6 +98,7 @@ function readAsObject(classLoader, inputSource, mainFile) {
       source,
       sourceJson,
       addsMap,
+      idsToFrameworks,
       dependencies: dependencies
         .concat(extractDependenciesFrom(localDependencies))
         .filter(d => d[0] !== '.' && d[0] !== '/')

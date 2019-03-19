@@ -1,4 +1,4 @@
-import { handleADD, handleSTORYOF, asImport, patchNode } from './parse-helpers';
+import { handleADD, handleSTORYOF, patchNode } from './parse-helpers';
 
 const estraverse = require('estraverse');
 
@@ -20,8 +20,9 @@ export function splitSTORYOF(ast, source) {
   return parts;
 }
 
-export function findAddsMap(ast) {
-  const adds = {};
+export function findAddsMap(ast, storiesOfIdentifiers) {
+  const addsMap = {};
+  const idsToFrameworks = {};
 
   estraverse.traverse(ast, {
     fallback: 'iteration',
@@ -29,16 +30,19 @@ export function findAddsMap(ast) {
       patchNode(node);
 
       if (node.type === 'MemberExpression') {
-        handleADD(node, parent, adds);
+        const { toAdd, idToFramework } = handleADD(node, parent, storiesOfIdentifiers);
+        Object.assign(addsMap, toAdd);
+        Object.assign(idsToFrameworks, idToFramework);
       }
     },
   });
 
-  return adds;
+  return { addsMap, idsToFrameworks };
 }
 
 export function findDependencies(ast) {
   const dependencies = [];
+  const storiesOfIdentifiers = {};
 
   estraverse.traverse(ast, {
     fallback: 'iteration',
@@ -46,9 +50,17 @@ export function findDependencies(ast) {
       patchNode(node);
 
       if (node.type === 'ImportDeclaration') {
-        dependencies.push(asImport(node));
+        const candidateSpecifier = (node.specifiers || []).find(
+          s => (s.imported || {}).name === 'storiesOf'
+        );
+        if (node.source.value.startsWith('@storybook/') && candidateSpecifier) {
+          Object.assign(storiesOfIdentifiers, {
+            [candidateSpecifier.local.name]: node.source.value,
+          });
+        }
+        dependencies.push(node.source.value);
       }
     },
   });
-  return dependencies;
+  return { dependencies, storiesOfIdentifiers };
 }

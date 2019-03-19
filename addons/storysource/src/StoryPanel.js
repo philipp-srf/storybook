@@ -2,6 +2,7 @@ import React, { Component } from 'react'; // eslint-disable-line no-unused-vars
 import PropTypes from 'prop-types';
 /** @jsx jsx */
 import { css, jsx } from '@emotion/core';
+import { toId } from '@storybook/router';
 import { Editor } from '@storybook/components';
 import { document } from 'global';
 import { FileExplorer, BrowserPreview, SandpackProvider } from 'react-smooshpack';
@@ -40,7 +41,7 @@ export default class StoryPanel extends Component {
   }
 
   listener = ({
-    edition: { source, mainFileLocation, dependencies, localDependencies, prefix },
+    edition: { source, mainFileLocation, dependencies, localDependencies, prefix, idsToFrameworks },
     story: { story, kind },
     location: { currentLocation, locationsMap },
   }) => {
@@ -55,6 +56,7 @@ export default class StoryPanel extends Component {
       currentLocation,
       mainFileLocation,
       prefix,
+      idsToFrameworks,
       locationsMap, // eslint-disable-line react/no-unused-state
       locationsKeys, // eslint-disable-line react/no-unused-state
     });
@@ -70,6 +72,7 @@ export default class StoryPanel extends Component {
       localDependencies,
       mainFileLocation,
       prefix,
+      idsToFrameworks,
     });
   };
 
@@ -227,12 +230,14 @@ export default class StoryPanel extends Component {
       this.setState({ lineDecorations: editorDecorations });
   };
 
-  renderBootstrapCode = ({ mainFileLocation, story, kind }) =>
+  renderBootstrapCode = ({ mainFileLocation, idsToFrameworks, story, kind }) =>
     `${mainFileLocation ? `import "..${mainFileLocation}"` : ''};
 import addons from "@storybook/addons";
 import Events from "@storybook/core-events";
 import { toId } from "@storybook/router/utils";
-import { forceReRender, addDecorator } from "@storybook/react";
+import { forceReRender, addDecorator } from "${(idsToFrameworks || {})[
+      toId(story || 'a', kind || 'a')
+    ] || '@storybook/react'}";
 import React from "react";
 import {
   Global,
@@ -256,10 +261,17 @@ forceReRender();
 `;
 
   findSource = path => {
-    const { localDependencies, mainFileLocation, source, story, kind } = this.state;
+    const {
+      localDependencies,
+      mainFileLocation,
+      source,
+      idsToFrameworks,
+      story,
+      kind,
+    } = this.state;
     if (path === mainFileLocation) return source;
     if (path === BOOTSTRAPPER_JS)
-      return this.renderBootstrapCode({ mainFileLocation, story, kind });
+      return this.renderBootstrapCode({ mainFileLocation, idsToFrameworks, story, kind });
     if (path === '/package.json') return this.renderFakePackageJsonFile();
     return localDependencies[path].code;
   };
@@ -270,7 +282,15 @@ forceReRender();
   };
 
   getFakeManifest = () => {
-    const { source, mainFileLocation, dependencies, localDependencies, story, kind } = this.state;
+    const {
+      source,
+      mainFileLocation,
+      dependencies,
+      idsToFrameworks,
+      localDependencies,
+      story,
+      kind,
+    } = this.state;
     const storybookVersion = 'latest';
     const setOfDependencies = Array.from(
       new Set(
@@ -289,7 +309,9 @@ forceReRender();
       files: {
         ...localDependencies,
         [mainFileLocation]: { code: source },
-        [BOOTSTRAPPER_JS]: { code: this.renderBootstrapCode({ mainFileLocation, story, kind }) },
+        [BOOTSTRAPPER_JS]: {
+          code: this.renderBootstrapCode({ mainFileLocation, idsToFrameworks, story, kind }),
+        },
       },
       dependenciesMapping: Object.assign(
         {},

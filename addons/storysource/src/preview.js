@@ -10,7 +10,8 @@ function setStorySource(
   mainFileLocation,
   dependencies,
   localDependencies,
-  prefix
+  prefix,
+  idsToFrameworks
 ) {
   const channel = addons.getChannel();
   const currentLocation = getLocation(context, locationsMap);
@@ -22,6 +23,7 @@ function setStorySource(
       dependencies,
       localDependencies,
       prefix,
+      idsToFrameworks,
     },
     story: {
       kind: context.kind,
@@ -40,7 +42,8 @@ export function withStorySource(
   mainFileLocation = '/index.js',
   dependencies = [],
   localDependencies = {},
-  prefix
+  prefix,
+  idsToFrameworks
 ) {
   return (story, context) => {
     setStorySource(
@@ -50,7 +53,8 @@ export function withStorySource(
       mainFileLocation,
       dependencies,
       localDependencies,
-      prefix
+      prefix,
+      idsToFrameworks
     );
     return story();
   };

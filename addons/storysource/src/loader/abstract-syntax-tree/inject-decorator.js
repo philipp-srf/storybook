@@ -1,4 +1,5 @@
 import defaultOptions from './default-options';
+import getParser from './parsers';
 
 import {
   generateSourceWithDecorators,
@@ -31,15 +32,18 @@ function inject(source, decorator, filepath, options = {}) {
       dependencies: [],
     };
   }
+  const parser = getParser(options.parser);
+  const ast = parser.parse(source);
 
   const { changed, source: newSource, comments } =
     injectDecorator === true
-      ? generateSourceWithDecorators(source, decorator, options.parser)
-      : generateSourceWithoutDecorators(source, options.parser);
+      ? generateSourceWithDecorators(source, ast, decorator)
+      : generateSourceWithoutDecorators(source, ast);
 
   const storySource = generateStorySource(extendOptions(source, comments, filepath, options));
-  const addsMap = generateAddsMap(storySource, options.parser);
-  const dependencies = generateDependencies(storySource, options.parser);
+  const newAst = parser.parse(storySource);
+  const { dependencies, storiesOfIdentifiers } = generateDependencies(newAst);
+  const { addsMap, idsToFrameworks } = generateAddsMap(newAst, storiesOfIdentifiers);
 
   if (!changed) {
     return {
@@ -48,6 +52,7 @@ function inject(source, decorator, filepath, options = {}) {
       addsMap: {},
       changed,
       dependencies,
+      idsToFrameworks: idsToFrameworks || {},
     };
   }
 
@@ -57,6 +62,7 @@ function inject(source, decorator, filepath, options = {}) {
     addsMap,
     changed,
     dependencies,
+    idsToFrameworks: idsToFrameworks || {},
   };
 }
 
