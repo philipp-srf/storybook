@@ -133,6 +133,7 @@ export default class StoryPanel extends Component {
         startLoc: { line: startLocLine, col: startLocCol },
         endLoc: { line: endLocLine, col: endLocCol },
       },
+      mainFileLocation,
     } = this.state;
 
     const newEndLocLine =
@@ -152,8 +153,13 @@ export default class StoryPanel extends Component {
       newEndLocCol = newSource.split('\n')[newEndLocLine - 1].length - 1;
     }
 
+    const { source } = this.state;
+    let updatedMain = source;
+    if (!this.openedPath || this.openedPath === mainFileLocation) {
+      updatedMain = newSource;
+    }
     this.setState({
-      source: newSource,
+      source: updatedMain,
       currentLocation: {
         startLoc: { line: startLocLine, col: startLocCol },
         endLoc: { line: newEndLocLine, col: newEndLocCol },
@@ -170,22 +176,28 @@ export default class StoryPanel extends Component {
       additionalStyles,
       lineDecorations,
       currentLocation: { startLoc, endLoc },
+      mainFileLocation,
     } = this.state;
+    const storyIsVisible = !this.openedPath || this.openedPath === mainFileLocation;
     const highlightClassName = `css-${additionalStyles.name}`;
     // probably a bug in monaco editor.
     // we will prevent the first highlighting from gluing in the editor
     const allDecorations = (lineDecorations || [])
       // eslint-disable-next-line no-underscore-dangle
       .concat(Object.keys(editor._modelData.viewModel.decorations._decorationsCache));
-    const newLineDecorations = editor.deltaDecorations(allDecorations, [
-      {
-        range: new monaco.Range(startLoc.line, startLoc.col + 1, endLoc.line, endLoc.col + 1),
-        options: { isWholeLine: false, inlineClassName: highlightClassName },
-      },
-    ]);
+    let newDecorations = [];
+    if (storyIsVisible) {
+      newDecorations = [
+        {
+          range: new monaco.Range(startLoc.line, startLoc.col + 1, endLoc.line, endLoc.col + 1),
+          options: { isWholeLine: false, inlineClassName: highlightClassName },
+        },
+      ];
+    }
+    const editorDecorations = editor.deltaDecorations(allDecorations, newDecorations);
 
     if (
-      e.position.lineNumber < startLoc.line ||
+      (storyIsVisible && e.position.lineNumber < startLoc.line) ||
       (e.position.lineNumber === startLoc.line && e.position.column < startLoc.col)
     )
       editor.setPosition({
@@ -193,7 +205,7 @@ export default class StoryPanel extends Component {
         column: startLoc.col,
       });
     if (
-      e.position.lineNumber > endLoc.line ||
+      (storyIsVisible && e.position.lineNumber > endLoc.line) ||
       (e.position.lineNumber === endLoc.line && e.position.column > endLoc.col + 1)
     )
       editor.setPosition({
@@ -201,8 +213,8 @@ export default class StoryPanel extends Component {
         column: endLoc.col + 1,
       });
 
-    if (newLineDecorations[0] !== lineDecorations[0])
-      this.setState({ lineDecorations: newLineDecorations });
+    if (editorDecorations[0] !== lineDecorations[0])
+      this.setState({ lineDecorations: editorDecorations });
   };
 
   renderBootstrapCode = ({ mainFileLocation, story, kind }) =>
@@ -307,6 +319,30 @@ forceReRender();
         >
           <FileExplorer
             css={css`
+              div[style*='margin-left: 0rem'] > div:not(.sandpack-File__container):before {
+                content: '📁';
+                position: absolute;
+                margin-left: 3px;
+                margin-top: 2px;
+                background-color: rgb(36, 40, 42);
+                z-index: 1;
+              }
+
+              .sandpack-File__container + div:not(.sandpack-File__container):before {
+                content: '📂';
+                margin-top: -18px;
+                position: absolute;
+                margin-left: -6px;
+                background-color: rgb(36, 40, 42);
+                z-index: 2;
+              }
+
+              .sandpack-File__container:before {
+                content: '📜';
+                position: absolute;
+                margin-left: -14px;
+              }
+
               .sandpack-File__container {
                 transition: 0.3s ease all;
                 font-family: sans-serif;
@@ -353,20 +389,23 @@ forceReRender();
           `}
         >
           <Subscriber channel="sandpack">
-            {({ openedPath }) => (
-              <Editor
-                css={additionalStyles}
-                source={this.findSource(openedPath)}
-                onChange={this.updateSource}
-                componentDidMount={this.editorDidMount}
-                changePosition={this.changePosition}
-                onStoryRendered={this.onStoryRendered}
-                channel={channel}
-                resizeContainerReference={() =>
-                  (document.getElementById('storybook-panel-root') || {}).parentNode
-                }
-              />
-            )}
+            {({ openedPath }) => {
+              this.openedPath = openedPath;
+              return (
+                <Editor
+                  css={additionalStyles}
+                  source={this.findSource(openedPath)}
+                  onChange={this.updateSource}
+                  componentDidMount={this.editorDidMount}
+                  changePosition={this.changePosition}
+                  onStoryRendered={this.onStoryRendered}
+                  channel={channel}
+                  resizeContainerReference={() =>
+                    (document.getElementById('storybook-panel-root') || {}).parentNode
+                  }
+                />
+              );
+            }}
           </Subscriber>
         </div>
         <BrowserPreview
