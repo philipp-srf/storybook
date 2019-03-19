@@ -6,6 +6,7 @@ import { Editor } from '@storybook/components';
 import { document } from 'global';
 import { FileExplorer, BrowserPreview, SandpackProvider } from 'react-smooshpack';
 import Draggable from 'react-draggable';
+import { Subscriber } from 'react-broadcast';
 import { SAVE_FILE_EVENT_ID, STORY_EVENT_ID } from './events';
 
 const getLocationKeys = locationsMap =>
@@ -14,6 +15,8 @@ const getLocationKeys = locationsMap =>
         (key1, key2) => locationsMap[key1].startLoc.line - locationsMap[key2].startLoc.line
       )
     : [];
+
+const BOOTSTRAPPER_JS = '/storysource/bootstrapper.js';
 
 export default class StoryPanel extends Component {
   state = {
@@ -230,19 +233,22 @@ addons.getChannel().emit(Events.SET_CURRENT_STORY, {
 forceReRender();
 `;
 
-  render = () => {
-    const { channel, active } = this.props;
-    const {
-      source,
-      mainFileLocation,
-      additionalStyles,
-      dependencies,
-      localDependencies,
-      fileExplorerWidth,
-      story,
-      kind,
-    } = this.state;
-    const indexJs = '/storysource/bootstrapper.js';
+  findSource = path => {
+    const { localDependencies, mainFileLocation, source, story, kind } = this.state;
+    if (path === mainFileLocation) return source;
+    if (path === BOOTSTRAPPER_JS)
+      return this.renderBootstrapCode({ mainFileLocation, story, kind });
+    if (path === '/package.json') return this.renderFakePackageJsonFile();
+    return localDependencies[path].code;
+  };
+
+  renderFakePackageJsonFile = () => {
+    const { entry, name, dependenciesMapping } = this.getFakeManifest();
+    return JSON.stringify({ name, main: entry, dependencies: dependenciesMapping }, null, 4);
+  };
+
+  getFakeManifest = () => {
+    const { source, mainFileLocation, dependencies, localDependencies, story, kind } = this.state;
     const storybookVersion = 'latest';
     const setOfDependencies = Array.from(
       new Set(
@@ -255,21 +261,39 @@ forceReRender();
         )
       )
     );
+    return {
+      name: `${story}-${kind}`,
+      entry: BOOTSTRAPPER_JS,
+      files: {
+        ...localDependencies,
+        [mainFileLocation]: { code: source },
+        [BOOTSTRAPPER_JS]: { code: this.renderBootstrapCode({ mainFileLocation, story, kind }) },
+      },
+      dependenciesMapping: Object.assign(
+        {},
+        ...setOfDependencies.map(d => ({
+          [d]: /^@storybook\//.test(d) ? storybookVersion : 'latest',
+        }))
+      ),
+    };
+  };
+
+  render = () => {
+    const { channel, active } = this.props;
+    const { additionalStyles, fileExplorerWidth } = this.state;
+    const { entry, files, dependenciesMapping } = this.getFakeManifest();
     return active ? (
       <SandpackProvider
-        style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'row' }}
-        files={{
-          ...localDependencies,
-          [mainFileLocation]: { code: source },
-          [indexJs]: { code: this.renderBootstrapCode({ mainFileLocation, story, kind }) },
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'row',
+          overflowY: 'hidden',
         }}
-        dependencies={Object.assign(
-          {},
-          ...setOfDependencies.map(d => ({
-            [d]: /^@storybook\//.test(d) ? storybookVersion : 'latest',
-          }))
-        )}
-        entry={indexJs}
+        files={files}
+        dependencies={dependenciesMapping}
+        entry={entry}
       >
         <div
           style={{
@@ -328,18 +352,22 @@ forceReRender();
             height: 100%;
           `}
         >
-          <Editor
-            css={additionalStyles}
-            source={source}
-            onChange={this.updateSource}
-            componentDidMount={this.editorDidMount}
-            changePosition={this.changePosition}
-            onStoryRendered={this.onStoryRendered}
-            channel={channel}
-            resizeContainerReference={() =>
-              (document.getElementById('storybook-panel-root') || {}).parentNode
-            }
-          />
+          <Subscriber channel="sandpack">
+            {({ openedPath }) => (
+              <Editor
+                css={additionalStyles}
+                source={this.findSource(openedPath)}
+                onChange={this.updateSource}
+                componentDidMount={this.editorDidMount}
+                changePosition={this.changePosition}
+                onStoryRendered={this.onStoryRendered}
+                channel={channel}
+                resizeContainerReference={() =>
+                  (document.getElementById('storybook-panel-root') || {}).parentNode
+                }
+              />
+            )}
+          </Subscriber>
         </div>
         <BrowserPreview
           css={css`
