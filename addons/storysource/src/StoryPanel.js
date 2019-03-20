@@ -236,7 +236,7 @@ import addons from "@storybook/addons";
 import Events from "@storybook/core-events";
 import { toId } from "@storybook/router/utils";
 import { forceReRender, addDecorator } from "${(idsToFrameworks || {})[
-      toId(story || 'a', kind || 'a')
+      toId(kind || 'a', story || 'a')
     ] || '@storybook/react'}";
 import React from "react";
 import {
