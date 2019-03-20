@@ -29,10 +29,16 @@ function extractLocalDependenciesFrom(tree) {
 
 function readAsObject(classLoader, inputSource, mainFile) {
   const options = getOptions(classLoader) || {};
-  const result = injectDecorator(inputSource, ADD_DECORATOR_STATEMENT, classLoader.resourcePath, {
-    ...options,
-    parser: options.parser || classLoader.extension,
-  });
+  const result = injectDecorator(
+    inputSource,
+    ADD_DECORATOR_STATEMENT,
+    classLoader.resourcePath,
+    {
+      ...options,
+      parser: options.parser || classLoader.extension,
+    },
+    classLoader.emitWarning.bind(classLoader)
+  );
 
   const sourceJson = JSON.stringify(result.storySource || inputSource)
     .replace(/\u2028/g, '\\u2028')

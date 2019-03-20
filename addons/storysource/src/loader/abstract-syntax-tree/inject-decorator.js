@@ -19,11 +19,17 @@ function extendOptions(source, comments, filepath, options) {
   };
 }
 
-function inject(source, decorator, filepath, options = {}) {
+function inject(source, decorator, filepath, options = {}, log = message => console.log(message)) {
   const { injectDecorator = true } = options;
   const obviouslyNotCode = ['md', 'txt', 'json'].includes(options.parser);
+  let parser = null;
+  try {
+    parser = getParser(options.parser);
+  } catch (e) {
+    log(new Error(`(not fatal, only impacting storysource) Could not load a parser (${e})`));
+  }
 
-  if (obviouslyNotCode) {
+  if (obviouslyNotCode || !parser) {
     return {
       source,
       storySource: {},
@@ -32,7 +38,6 @@ function inject(source, decorator, filepath, options = {}) {
       dependencies: [],
     };
   }
-  const parser = getParser(options.parser);
   const ast = parser.parse(source);
 
   const { changed, source: newSource, comments } =
