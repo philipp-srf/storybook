@@ -50,7 +50,12 @@ function prettifyCode(source, { prettierConfig, parser, filepath }) {
     }
   }
 
-  return prettier.format(source, config);
+  try {
+    return prettier.format(source, config);
+  } catch (e) {
+    // Can fail when the source is a JSON
+    return source;
+  }
 }
 
 export function generateSourceWithDecorators(source, ast, decorator) {
