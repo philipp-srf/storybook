@@ -30,7 +30,7 @@ function prettifyCode(source, { prettierConfig, parser, filepath }) {
   let config = prettierConfig;
   let foundParser = null;
   if (parser === 'javascript' || /jsx?/.test(parser)) foundParser = 'babel';
-  if (/tsx?/.test(parser)) foundParser = 'typescript';
+  if (parser === 'typescript' || /tsx?/.test(parser)) foundParser = 'typescript';
   if (!config.parser) {
     if (foundParser) {
       config = {
